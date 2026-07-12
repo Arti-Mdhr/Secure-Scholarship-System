@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import argon2 from "argon2";
+import { ZodError } from "zod";
 
 import User from "../models/User";
 import { registerSchema } from "../validators/auth.validator";
@@ -66,12 +67,21 @@ export const register = async (
         email: user.email,
       },
     });
-  } catch (error) {
-    console.error(error);
+  }catch (error) {
 
-    res.status(500).json({
+  if (error instanceof ZodError) {
+    res.status(400).json({
       success: false,
-      message: "Registration failed",
+      errors: error.issues,
     });
+    return;
   }
+
+  console.error(error);
+
+  res.status(500).json({
+    success: false,
+    message: "Registration failed",
+  });
+}
 };
