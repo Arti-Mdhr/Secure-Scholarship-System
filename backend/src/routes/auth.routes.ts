@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { register, login, setupMFA, verifyMFA, loginWithMFA, changePassword, } from "../controllers/auth.controller";
+import { register, login, setupMFA, verifyMFA, loginWithMFA, changePassword,requestPasswordReset, resetPassword , logout} from "../controllers/auth.controller";
 import { protect } from "../middleware/auth";
 
 
@@ -9,7 +9,10 @@ const router = Router();
 
 router.post("/register", register);
 router.post("/login", login);
-
+router.post(
+  "/request-password-reset",
+  requestPasswordReset
+);
 
 router.post("/mfa/setup", protect, setupMFA);
 
@@ -29,5 +32,17 @@ router.post(
   protect,
   changePassword
 );
+
+router.post(
+  "/reset-password",
+  resetPassword
+);
+
+router.post(
+  "/logout",
+  protect,
+  logout
+);
+
 
 export default router;

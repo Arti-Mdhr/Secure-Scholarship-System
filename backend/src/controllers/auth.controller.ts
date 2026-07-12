@@ -3,6 +3,7 @@ import argon2 from "argon2";
 import { ZodError } from "zod";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import crypto from "crypto";
 
 
 import User from "../models/User";
@@ -12,9 +13,15 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import RefreshToken from "../models/RefreshToken";
 import AuditLog from "../models/AuditLog";
 import SecurityEvent from "../models/SecurityEvent";
-import { changePasswordSchema } from "../validators/password.validator";
+import { changePasswordSchema , } from "../validators/password.validator";
+import PasswordResetToken from "../models/PasswordResetOTP";
+import {
+  requestPasswordResetSchema,
+  resetPasswordSchema,
+} from "../validators/password-reset.validator";
 
 import { AuthRequest } from "../middleware/auth";
+import PasswordResetOTP from "../models/PasswordResetOTP";
 
 export const login = async (
   req: Request,
@@ -554,6 +561,293 @@ export const changePassword = async (
       success: false,
       message:
         "Password change failed",
+    });
+  }
+};
+
+export const requestPasswordReset = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const validatedData =
+      requestPasswordResetSchema.parse(
+        req.body
+      );
+
+    const user =
+      await User.findOne({
+        email:
+          validatedData.email,
+      });
+
+    if (!user) {
+      res.status(200).json({
+        success: true,
+        message:
+          "If the account exists, a reset OTP has been generated",
+      });
+      return;
+    }
+
+    const otp =
+      crypto
+        .randomInt(
+          100000,
+          999999
+        )
+        .toString();
+
+    const otpHash =
+      await argon2.hash(otp);
+
+    await PasswordResetOTP.deleteMany({
+      userId: user._id,
+      used: false,
+    });
+
+    await PasswordResetOTP.create({
+      userId: user._id,
+
+      otpHash,
+
+      expiresAt: new Date(
+        Date.now() +
+          10 *
+            60 *
+            1000
+      ),
+    });
+
+    await SecurityEvent.create({
+      eventType:
+        "PASSWORD_RESET_REQUEST",
+      severity: "low",
+      userId: user._id,
+      description:
+        "Password reset requested",
+    });
+
+    await AuditLog.create({
+      userId: user._id,
+      action:
+        "PASSWORD_RESET_REQUEST",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers[
+          "user-agent"
+        ],
+    });
+
+    res.status(200).json({
+      success: true,
+
+      message:
+        "OTP generated",
+
+      otp, // Development mode only
+    });
+  } catch (error) {
+    if (
+      error instanceof ZodError
+    ) {
+      res.status(400).json({
+        success: false,
+        errors:
+          error.issues,
+      });
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Password reset request failed",
+    });
+  }
+};
+ 
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const validatedData =
+      resetPasswordSchema.parse(req.body);
+
+    const user = await User.findOne({
+      email: validatedData.email,
+    });
+
+    if (!user) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid reset request",
+      });
+      return;
+    }
+
+    const resetRecord =
+      await PasswordResetOTP.findOne({
+        userId: user._id,
+        used: false,
+      }).sort({ createdAt: -1 });
+
+    if (!resetRecord) {
+      res.status(400).json({
+        success: false,
+        message: "OTP not found",
+      });
+      return;
+    }
+
+    if (
+      resetRecord.expiresAt <
+      new Date()
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+      return;
+    }
+
+    const otpValid =
+      await argon2.verify(
+        resetRecord.otpHash,
+        validatedData.otp
+      );
+
+    if (!otpValid) {
+      await SecurityEvent.create({
+        eventType:
+          "PASSWORD_RESET_FAILURE",
+        severity: "medium",
+        userId: user._id,
+        description:
+          "Invalid password reset OTP",
+      });
+
+      res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+      return;
+    }
+
+    // Password Reuse Prevention
+    for (const oldHash of user.passwordHistory) {
+      const reused =
+        await argon2.verify(
+          oldHash,
+          validatedData.newPassword
+        );
+
+      if (reused) {
+        res.status(400).json({
+          success: false,
+          message:
+            "You cannot reuse a previous password",
+        });
+        return;
+      }
+    }
+
+    const newPasswordHash =
+      await argon2.hash(
+        validatedData.newPassword
+      );
+
+    user.passwordHash =
+      newPasswordHash;
+
+    user.passwordHistory.push(
+      newPasswordHash
+    );
+
+    if (
+      user.passwordHistory.length > 5
+    ) {
+      user.passwordHistory =
+        user.passwordHistory.slice(-5);
+    }
+
+    await user.save();
+
+    resetRecord.used = true;
+    await resetRecord.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "PASSWORD_RESET",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers["user-agent"],
+    });
+
+    await SecurityEvent.create({
+      eventType:
+        "PASSWORD_RESET_SUCCESS",
+      severity: "low",
+      userId: user._id,
+      description:
+        "Password reset completed",
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password reset successful",
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        errors: error.issues,
+      });
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Password reset failed",
+    });
+  }
+};
+
+export const logout = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    await RefreshToken.deleteMany({
+      userId: req.user?.id,
+    });
+
+    await AuditLog.create({
+      userId: req.user?.id,
+      action: "LOGOUT",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Logged out successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Logout failed",
     });
   }
 };
