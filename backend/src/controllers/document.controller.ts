@@ -114,3 +114,52 @@ const documentType =
     });
   }
 };
+
+export const getApplicationDocuments = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const application =
+      await ScholarshipApplication.findById(
+        req.params.id
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    // Ownership Validation
+    if (
+      application.applicant.toString() !==
+      req.user?.id
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+      return;
+    }
+
+    const documents =
+      await Document.find({
+        applicationId: application._id,
+      });
+
+    res.status(200).json({
+      success: true,
+      documents,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve documents",
+    });
+  }
+};
