@@ -5,6 +5,30 @@ import ScholarshipApplication from "../models/ScholarshipApplication";
 import { AuthRequest } from "../middleware/auth";
 import { createApplicationSchema } from "../validators/application.validators";
 
+
+export const getMyApplications = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const applications =
+      await ScholarshipApplication.find({
+        applicant: req.user?.id,
+      });
+
+    res.status(200).json({
+      success: true,
+      applications,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch applications",
+    });
+  }
+};
 export const createApplication = async (
   req: AuthRequest,
   res: Response
@@ -53,5 +77,9 @@ export const createApplication = async (
       success: false,
       message: "Application creation failed",
     });
+
+    
   }
+
+  
 };
