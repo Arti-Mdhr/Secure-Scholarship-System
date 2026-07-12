@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
+import { ZodError } from "zod";
+
 import ScholarshipApplication from "../models/ScholarshipApplication";
 import AuditLog from "../models/AuditLog";
+import { reviewApplicationSchema } from "../validators/admin.validator";
 
 export const getAllApplications = async (
   req: Request,
@@ -33,10 +36,8 @@ export const reviewApplication = async (
   res: Response
 ): Promise<void> => {
   try {
-    const {
-      status,
-      reviewerComments,
-    } = req.body;
+    const validatedData =
+      reviewApplicationSchema.parse(req.body);
 
     const application =
       await ScholarshipApplication.findById(
@@ -51,9 +52,11 @@ export const reviewApplication = async (
       return;
     }
 
-    application.status = status;
+    application.status =
+      validatedData.status;
+
     application.reviewerComments =
-      reviewerComments;
+      validatedData.reviewerComments;
 
     await application.save();
 
@@ -62,6 +65,8 @@ export const reviewApplication = async (
       targetType:
         "ScholarshipApplication",
       targetId: application.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
     });
 
     res.status(200).json({
@@ -69,6 +74,14 @@ export const reviewApplication = async (
       application,
     });
   } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        errors: error.issues,
+      });
+      return;
+    }
+
     console.error(error);
 
     res.status(500).json({
