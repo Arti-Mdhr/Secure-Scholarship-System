@@ -7,6 +7,9 @@ import Document from "../models/Document";
 import AuditLog from "../models/AuditLog";
 import { uploadDocumentSchema } from "../validators/document.validator";
 import { ZodError } from "zod";
+import path from "path";
+import fs from "fs";
+import User from "../models/User";
 
 export const uploadDocument = async (
   req: AuthRequest,
@@ -197,6 +200,78 @@ export const getApplicationDocumentsAdmin = async (
     res.status(500).json({
       success: false,
       message: "Failed to retrieve documents",
+    });
+  }
+};
+
+export const downloadDocument = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const document =
+      await Document.findById(req.params.id);
+
+    if (!document) {
+      res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+      return;
+    }
+
+    const application =
+      await ScholarshipApplication.findById(
+        document.applicationId
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    const isOwner =
+      application.applicant.toString() ===
+      req.user?.id;
+
+    const user =
+      await User.findById(req.user?.id);
+
+    const isAdmin =
+      user?.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+      return;
+    }
+
+    const filePath =
+      path.resolve(document.filePath);
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+      return;
+    }
+
+    res.download(
+      filePath,
+      document.originalName
+    );
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Download failed",
     });
   }
 };
