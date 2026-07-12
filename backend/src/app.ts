@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import adminRoutes from "./routes/admin.routes";
 import applicationRoutes from "./routes/application.routes";
+import documentRoutes from "./routes/document.routes";
 
 
 const app = express();
@@ -31,5 +32,10 @@ app.get("/", (req, res) => {
 app.get("/test", (req, res) => {
   res.json({ message: "working" });
 });
+
+app.use(
+  "/api",
+  documentRoutes
+);
 
 export default app;
