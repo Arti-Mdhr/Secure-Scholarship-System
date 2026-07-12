@@ -19,3 +19,5 @@ export const createApplicationSchema = z.object({
 
   extracurricularActivities: z.string().min(5),
 });
+
+export const updateApplicationSchema = createApplicationSchema.partial();

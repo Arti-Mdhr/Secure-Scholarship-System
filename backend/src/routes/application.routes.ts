@@ -4,7 +4,8 @@ import { protect } from "../middleware/auth";
 import {
   createApplication,
   getMyApplications,
-  getApplicationById
+  getApplicationById,
+  updateApplication
 } from "../controllers/application.controller";
 
 const router = Router();
@@ -25,6 +26,12 @@ router.get(
   "/:id",
   protect,
   getApplicationById
+);
+
+router.put(
+  "/:id",
+  protect,
+  updateApplication
 );
 
 export default router;
