@@ -29,6 +29,7 @@ export const getMyApplications = async (
     });
   }
 };
+
 export const createApplication = async (
   req: AuthRequest,
   res: Response
@@ -82,4 +83,47 @@ export const createApplication = async (
   }
 
   
+};
+
+export const getApplicationById = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const application =
+      await ScholarshipApplication.findById(
+        req.params.id
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    if (
+      application.applicant.toString() !==
+      req.user?.id
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      application,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch application",
+    });
+  }
 };
