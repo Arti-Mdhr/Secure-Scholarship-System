@@ -163,3 +163,40 @@ export const getApplicationDocuments = async (
     });
   }
 };
+
+export const getApplicationDocumentsAdmin = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const application =
+      await ScholarshipApplication.findById(
+        req.params.id
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    const documents =
+      await Document.find({
+        applicationId: application._id,
+      });
+
+    res.status(200).json({
+      success: true,
+      documents,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve documents",
+    });
+  }
+};

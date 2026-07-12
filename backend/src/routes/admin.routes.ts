@@ -6,6 +6,7 @@ import {
   getAllApplications,
   reviewApplication,
 } from "../controllers/admin.controller";
+import { getApplicationDocumentsAdmin } from "../controllers/document.controller";
 
 const router = Router();
 
@@ -37,6 +38,13 @@ router.patch(
   protect,
   authorize("admin"),
   reviewApplication
+);
+
+router.get(
+  "/applications/:id/documents",
+  protect,
+  authorize("admin"),
+  getApplicationDocumentsAdmin
 );
 
 export default router;
