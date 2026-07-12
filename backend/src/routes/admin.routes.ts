@@ -2,6 +2,9 @@ import { Router } from "express";
 import User from "../models/User";
 import { protect } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
+import {
+  getAllApplications,
+} from "../controllers/admin.controller";
 
 const router = Router();
 
@@ -19,6 +22,13 @@ router.get(
       users,
     });
   }
+);
+
+router.get(
+  "/applications",
+  protect,
+  authorize("admin"),
+  getAllApplications
 );
 
 export default router;
