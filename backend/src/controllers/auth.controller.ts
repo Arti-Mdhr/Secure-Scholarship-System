@@ -12,6 +12,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import RefreshToken from "../models/RefreshToken";
 import AuditLog from "../models/AuditLog";
 import SecurityEvent from "../models/SecurityEvent";
+import { changePasswordSchema } from "../validators/password.validator";
 
 import { AuthRequest } from "../middleware/auth";
 
@@ -447,6 +448,112 @@ export const loginWithMFA = async (
       success: false,
       message:
         "MFA login failed",
+    });
+  }
+};
+
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validatedData =
+      changePasswordSchema.parse(req.body);
+
+    const user = await User.findById(
+      req.user?.id
+    );
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    const currentPasswordValid =
+      await argon2.verify(
+        user.passwordHash,
+        validatedData.currentPassword
+      );
+
+    if (!currentPasswordValid) {
+      res.status(401).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+      return;
+    }
+
+    // Password Reuse Prevention
+    for (const oldHash of user.passwordHistory) {
+      const reused =
+        await argon2.verify(
+          oldHash,
+          validatedData.newPassword
+        );
+
+      if (reused) {
+        res.status(400).json({
+          success: false,
+          message:
+            "You cannot reuse a previous password",
+        });
+        return;
+      }
+    }
+
+    const newPasswordHash =
+      await argon2.hash(
+        validatedData.newPassword
+      );
+
+    user.passwordHash =
+      newPasswordHash;
+
+    user.passwordHistory.push(
+      newPasswordHash
+    );
+
+    // Keep last 5 passwords
+    if (
+      user.passwordHistory.length > 5
+    ) {
+      user.passwordHistory =
+        user.passwordHistory.slice(-5);
+    }
+
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "PASSWORD_CHANGED",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password changed successfully",
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        errors: error.issues,
+      });
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Password change failed",
     });
   }
 };
