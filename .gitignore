@@ -1,0 +1,24 @@
+# Environment Variables
+.env
+.env.*
+
+# Node Modules
+node_modules/
+
+# Build
+dist/
+.next/
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/settings.json
