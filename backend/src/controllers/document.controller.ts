@@ -108,14 +108,21 @@ const documentType =
       document,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
+  if (error instanceof ZodError) {
+    res.status(400).json({
       success: false,
-      message:
-        "Document upload failed",
+      errors: error.issues,
     });
+    return;
   }
+
+  console.error(error);
+
+  res.status(500).json({
+    success: false,
+    message: "Document upload failed",
+  });
+}
 };
 
 export const getApplicationDocuments = async (
@@ -261,6 +268,20 @@ export const downloadDocument = async (
       });
       return;
     }
+
+    await AuditLog.create({
+  userId: req.user?.id,
+
+  action: "DOCUMENT_DOWNLOADED",
+
+  targetType: "Document",
+
+  targetId: document.id,
+
+  ipAddress: req.ip,
+
+  userAgent: req.headers["user-agent"],
+});
 
     res.download(
       filePath,

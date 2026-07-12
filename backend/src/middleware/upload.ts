@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
       Date.now() +
       "-" +
       crypto.randomBytes(8).toString("hex") +
-      path.extname(file.originalname);
+      path.extname(file.originalname).toLowerCase();
 
     cb(null, uniqueName);
   },
@@ -32,22 +32,45 @@ const allowedMimeTypes = [
   "image/png",
 ];
 
+const allowedExtensions = [
+  ".pdf",
+  ".jpg",
+  ".jpeg",
+  ".png",
+];
+
 const fileFilter = (
   req: any,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
+  const extension = path
+    .extname(file.originalname)
+    .toLowerCase();
+
   if (
-    allowedMimeTypes.includes(file.mimetype)
+    !allowedExtensions.includes(extension)
   ) {
-    cb(null, true);
-  } else {
-    cb(
+    return cb(
+      new Error(
+        "Unsupported file extension"
+      )
+    );
+  }
+
+  if (
+    !allowedMimeTypes.includes(
+      file.mimetype
+    )
+  ) {
+    return cb(
       new Error(
         "Unsupported file type"
       )
     );
   }
+
+  cb(null, true);
 };
 
 const upload = multer({
@@ -55,7 +78,7 @@ const upload = multer({
 
   limits: {
     fileSize:
-      5 * 1024 * 1024,
+      5 * 1024 * 1024, // 5MB
   },
 
   fileFilter,
