@@ -5,7 +5,8 @@ import {
   createApplication,
   getMyApplications,
   getApplicationById,
-  updateApplication
+  updateApplication,
+  submitApplication
 } from "../controllers/application.controller";
 
 const router = Router();
@@ -32,6 +33,12 @@ router.put(
   "/:id",
   protect,
   updateApplication
+);
+
+router.post(
+  "/:id/submit",
+  protect,
+  submitApplication
 );
 
 export default router;

@@ -198,3 +198,69 @@ export const updateApplication = async (
     });
   }
 };
+
+export const submitApplication = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const application =
+      await ScholarshipApplication.findById(
+        req.params.id
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    if (
+      application.applicant.toString() !==
+      req.user?.id
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+      return;
+    }
+
+    if (application.status !== "draft") {
+      res.status(400).json({
+        success: false,
+        message:
+          "Application has already been submitted",
+      });
+      return;
+    }
+
+    application.status = "submitted";
+    application.submittedAt = new Date();
+
+    await application.save();
+
+    await AuditLog.create({
+      userId: req.user?.id,
+      action: "APPLICATION_SUBMITTED",
+      targetType: "ScholarshipApplication",
+      targetId: application.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Application submitted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Submission failed",
+    });
+  }
+};
