@@ -533,6 +533,12 @@ export const changePassword = async (
 
     await user.save();
 
+    await RefreshToken.deleteMany({
+  userId: user._id,
+});
+
+
+
     await AuditLog.create({
       userId: user._id,
       action: "PASSWORD_CHANGED",
@@ -775,6 +781,10 @@ export const resetPassword = async (
     }
 
     await user.save();
+
+    await RefreshToken.deleteMany({
+  userId: user._id,
+});
 
     resetRecord.used = true;
     await resetRecord.save();
