@@ -4,6 +4,7 @@ import { protect } from "../middleware/auth";
 import { authorize } from "../middleware/authorize";
 import {
   getAllApplications,
+  reviewApplication,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -29,6 +30,13 @@ router.get(
   protect,
   authorize("admin"),
   getAllApplications
+);
+
+router.patch(
+  "/applications/:id/review",
+  protect,
+  authorize("admin"),
+  reviewApplication
 );
 
 export default router;
