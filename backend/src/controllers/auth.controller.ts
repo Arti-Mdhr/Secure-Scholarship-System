@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 
 import User from "../models/User";
@@ -22,6 +23,7 @@ import {
 
 import { AuthRequest } from "../middleware/auth";
 import PasswordResetOTP from "../models/PasswordResetOTP";
+import { sendPasswordResetEmail } from "../utils/email";
 
 export const login = async (
   req: Request,
@@ -41,6 +43,14 @@ export const login = async (
       });
       return;
     }
+
+    if (!user.isActive) {
+  res.status(403).json({
+    success: false,
+    message: "Account disabled",
+  });
+  return;
+}
 
     if (
       user.accountLockedUntil &&
@@ -645,14 +655,16 @@ export const requestPasswordReset = async (
         ],
     });
 
-    res.status(200).json({
-      success: true,
+    await sendPasswordResetEmail(
+  user.email,
+  otp
+);
 
-      message:
-        "OTP generated",
-
-      otp, // Development mode only
-    });
+res.status(200).json({
+  success: true,
+  message:
+    "Password reset OTP sent to your email",
+});
   } catch (error) {
     if (
       error instanceof ZodError
@@ -858,6 +870,140 @@ export const logout = async (
     res.status(500).json({
       success: false,
       message: "Logout failed",
+    });
+  }
+};
+
+export const refreshAccessToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({
+        success: false,
+        message: "Refresh token required",
+      });
+      return;
+    }
+
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET as string
+    ) as { sub: string };
+
+    const userId = decoded.sub;
+
+    const storedTokens =
+      await RefreshToken.find({
+        userId,
+        revoked: false,
+      });
+
+    let matchedToken = null;
+
+    for (const tokenRecord of storedTokens) {
+      const valid =
+        await argon2.verify(
+          tokenRecord.tokenHash,
+          refreshToken
+        );
+
+      if (valid) {
+        matchedToken = tokenRecord;
+        break;
+      }
+    }
+
+    if (!matchedToken) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+      return;
+    }
+
+    if (
+      matchedToken.expiresAt <
+      new Date()
+    ) {
+      res.status(401).json({
+        success: false,
+        message: "Refresh token expired",
+      });
+      return;
+    }
+
+    const user =
+      await User.findById(userId);
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    const newAccessToken =
+      generateAccessToken(
+        user.id,
+        user.role
+      );
+
+    const newRefreshToken =
+      generateRefreshToken(
+        user.id
+      );
+
+    const newRefreshTokenHash =
+      await argon2.hash(
+        newRefreshToken
+      );
+
+    await RefreshToken.create({
+      userId: user._id,
+      tokenHash:
+        newRefreshTokenHash,
+      expiresAt: new Date(
+        Date.now() +
+          7 *
+            24 *
+            60 *
+            60 *
+            1000
+      ),
+    });
+
+    await matchedToken.deleteOne();
+
+    await AuditLog.create({
+      userId: user._id,
+      action:
+        "TOKEN_REFRESHED",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers[
+          "user-agent"
+        ],
+    });
+
+    res.status(200).json({
+      success: true,
+      accessToken:
+        newAccessToken,
+      refreshToken:
+        newRefreshToken,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(401).json({
+      success: false,
+      message:
+        "Invalid refresh token",
     });
   }
 };

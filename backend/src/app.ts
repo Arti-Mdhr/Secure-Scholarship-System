@@ -9,10 +9,26 @@ import adminRoutes from "./routes/admin.routes";
 import applicationRoutes from "./routes/application.routes";
 import documentRoutes from "./routes/document.routes";
 
-
 const app = express();
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+      },
+    },
 
-app.use(helmet());
+    frameguard: {
+      action: "deny",
+    },
+
+    referrerPolicy: {
+      policy: "no-referrer",
+    },
+
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
