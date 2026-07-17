@@ -1,16 +1,27 @@
 import { Router } from "express";
 
-import { register, login, setupMFA, verifyMFA, loginWithMFA, changePassword,requestPasswordReset, resetPassword , logout} from "../controllers/auth.controller";
+import { register, login, setupMFA, verifyMFA, loginWithMFA, changePassword,requestPasswordReset, resetPassword , logout,refreshAccessToken,} from "../controllers/auth.controller";
 import { protect } from "../middleware/auth";
-
+import {
+  loginLimiter,
+  mfaLimiter,
+  passwordResetLimiter,
+  passwordResetRequestLimiter,
+  refreshLimiter,
+} from "../middleware/rateLimiter";
 
 
 const router = Router();
 
 router.post("/register", register);
-router.post("/login", login);
+router.post(
+  "/login",
+  loginLimiter,
+  login
+);
 router.post(
   "/request-password-reset",
+  passwordResetRequestLimiter,
   requestPasswordReset
 );
 
@@ -24,9 +35,9 @@ router.post(
 
 router.post(
   "/mfa/login",
+  mfaLimiter,
   loginWithMFA
 );
-
 router.post(
   "/change-password",
   protect,
@@ -35,6 +46,7 @@ router.post(
 
 router.post(
   "/reset-password",
+    passwordResetLimiter,
   resetPassword
 );
 
@@ -42,6 +54,11 @@ router.post(
   "/logout",
   protect,
   logout
+);
+
+router.post(
+  "/refresh",
+  refreshAccessToken
 );
 
 
