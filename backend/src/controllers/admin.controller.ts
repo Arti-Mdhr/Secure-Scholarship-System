@@ -1,92 +1,195 @@
 import { Request, Response } from "express";
-import { ZodError } from "zod";
 
-import ScholarshipApplication from "../models/ScholarshipApplication";
+import User from "../models/User";
 import AuditLog from "../models/AuditLog";
-import { reviewApplicationSchema } from "../validators/admin.validator";
+import ScholarshipApplication from "../models/ScholarshipApplication";
+import SecurityEvent from "../models/SecurityEvent";
 
-export const getAllApplications = async (
+export const getAllUsers = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const applications =
-      await ScholarshipApplication.find()
-        .populate(
-          "applicant",
-          "fullName email studentId"
-        );
+    const users = await User.find()
+      .select("-passwordHash -passwordHistory -mfaSecret");
 
     res.status(200).json({
       success: true,
-      applications,
+      users,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       success: false,
-      message: "Failed to fetch applications",
+      message: "Failed to retrieve users",
     });
   }
 };
 
-export const reviewApplication = async (
+export const disableUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const validatedData =
-      reviewApplicationSchema.parse(req.body);
+    const user = await User.findById(
+      req.params.id
+    );
 
-    const application =
-      await ScholarshipApplication.findById(
-        req.params.id
-      );
-
-    if (!application) {
+    if (!user) {
       res.status(404).json({
         success: false,
-        message: "Application not found",
+        message: "User not found",
       });
       return;
     }
 
-    application.status =
-      validatedData.status;
+    user.isActive = false;
 
-    application.reviewerComments =
-      validatedData.reviewerComments;
-
-    await application.save();
+    await user.save();
 
     await AuditLog.create({
-      action: "APPLICATION_REVIEWED",
-      targetType:
-        "ScholarshipApplication",
-      targetId: application.id,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
+      action: "USER_DISABLED",
+      targetType: "User",
+      targetId: user.id,
     });
 
     res.status(200).json({
       success: true,
-      application,
+      message: "User disabled",
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      res.status(400).json({
-        success: false,
-        errors: error.issues,
-      });
-      return;
-    }
-
     console.error(error);
 
     res.status(500).json({
       success: false,
-      message: "Review failed",
+      message: "Failed to disable user",
+    });
+  }
+};
+
+export const enableUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const user = await User.findById(
+      req.params.id
+    );
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    user.isActive = true;
+
+    await user.save();
+
+    await AuditLog.create({
+      action: "USER_ENABLED",
+      targetType: "User",
+      targetId: user.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "User enabled",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to enable user",
+    });
+  }
+};
+
+export const getAdminStats = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const totalUsers =
+      await User.countDocuments();
+
+    const activeUsers =
+      await User.countDocuments({
+        isActive: true,
+      });
+
+    const disabledUsers =
+      await User.countDocuments({
+        isActive: false,
+      });
+
+    const totalApplications =
+      await ScholarshipApplication.countDocuments();
+
+    const approvedApplications =
+      await ScholarshipApplication.countDocuments({
+        status: "approved",
+      });
+
+    const rejectedApplications =
+      await ScholarshipApplication.countDocuments({
+        status: "rejected",
+      });
+
+    const pendingApplications =
+      await ScholarshipApplication.countDocuments({
+        status: { $in: ["submitted", "under_review"] },
+      });
+
+    res.status(200).json({
+      success: true,
+
+      stats: {
+        totalUsers,
+        activeUsers,
+        disabledUsers,
+
+        totalApplications,
+        approvedApplications,
+        rejectedApplications,
+        pendingApplications,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to retrieve statistics",
+    });
+  }
+};
+
+export const getSecurityEvents = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const events =
+      await SecurityEvent.find()
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      events,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to retrieve security events",
     });
   }
 };

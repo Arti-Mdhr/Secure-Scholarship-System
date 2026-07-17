@@ -1,50 +1,50 @@
 import { Router } from "express";
-import User from "../models/User";
+
 import { protect } from "../middleware/auth";
-import { authorize } from "../middleware/authorize";
+import { adminOnly } from "../middleware/admin";
+
 import {
-  getAllApplications,
-  reviewApplication,
+  getAllUsers,
+  disableUser,
+  enableUser,
+  getAdminStats,
+  getSecurityEvents,
 } from "../controllers/admin.controller";
-import { getApplicationDocumentsAdmin } from "../controllers/document.controller";
 
 const router = Router();
 
 router.get(
   "/users",
   protect,
-  authorize("admin"),
-  async (req, res) => {
-    const users = await User.find().select(
-      "-passwordHash -passwordHistory -mfaSecret"
-    );
-
-    res.json({
-      success: true,
-      users,
-    });
-  }
-);
-
-router.get(
-  "/applications",
-  protect,
-  authorize("admin"),
-  getAllApplications
+  adminOnly,
+  getAllUsers
 );
 
 router.patch(
-  "/applications/:id/review",
+  "/users/:id/disable",
   protect,
-  authorize("admin"),
-  reviewApplication
+  adminOnly,
+  disableUser
+);
+
+router.patch(
+  "/users/:id/enable",
+  protect,
+  adminOnly,
+  enableUser
 );
 
 router.get(
-  "/applications/:id/documents",
+  "/stats",
   protect,
-  authorize("admin"),
-  getApplicationDocumentsAdmin
+  adminOnly,
+  getAdminStats
 );
 
+router.get(
+  "/security-events",
+  protect,
+  adminOnly,
+  getSecurityEvents
+);
 export default router;
