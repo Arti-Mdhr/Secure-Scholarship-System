@@ -4,6 +4,7 @@ import User from "../models/User";
 import AuditLog from "../models/AuditLog";
 import ScholarshipApplication from "../models/ScholarshipApplication";
 import SecurityEvent from "../models/SecurityEvent";
+import { AuthRequest } from "../middleware/auth";
 
 export const getAllUsers = async (
   req: Request,
@@ -28,10 +29,16 @@ export const getAllUsers = async (
 };
 
 export const disableUser = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  try {
+  try {if (req.user?.id === req.params.id) {
+  res.status(400).json({
+    success: false,
+    message: "You cannot disable your own account.",
+  });
+  return;
+}
     const user = await User.findById(
       req.params.id
     );

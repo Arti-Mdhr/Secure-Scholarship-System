@@ -1,11 +1,16 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     role: string;
   };
+}
+
+interface AccessTokenPayload extends JwtPayload {
+  sub: string;
+  role: string;
 }
 
 export const protect = (
@@ -16,7 +21,7 @@ export const protect = (
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({
         success: false,
         message: "Authentication required",
@@ -26,13 +31,16 @@ export const protect = (
 
     const token = authHeader.split(" ")[1];
 
+    const secret = process.env.JWT_ACCESS_SECRET;
+
+    if (!secret) {
+      throw new Error("JWT_ACCESS_SECRET is not configured.");
+    }
+
     const decoded = jwt.verify(
       token,
-      process.env.JWT_ACCESS_SECRET as string
-    ) as {
-      sub: string;
-      role: string;
-    };
+      secret
+    ) as AccessTokenPayload;
 
     req.user = {
       id: decoded.sub,
@@ -40,10 +48,12 @@ export const protect = (
     };
 
     next();
-  } catch {
+  } catch (error) {
+    console.error("JWT Authentication Error:", error);
+
     res.status(401).json({
       success: false,
-      message: "Invalid token",
+      message: "Invalid or expired token",
     });
   }
 };

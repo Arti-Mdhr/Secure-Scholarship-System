@@ -1,86 +1,50 @@
 import rateLimit from "express-rate-limit";
 
-export const loginLimiter =
+const createLimiter = (
+  max: number,
+  message: string,
+  skipSuccessfulRequests = false
+) =>
   rateLimit({
-    windowMs:
-      15 * 60 * 1000,
+    windowMs: 15 * 60 * 1000,
 
-    max: 5,
+    max,
 
-    message: {
-      success: false,
-      message:
-        "Too many login attempts. Try again later.",
-    },
+    skipSuccessfulRequests,
 
     standardHeaders: true,
     legacyHeaders: false,
-  });
 
-export const mfaLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
-
-    max: 5,
-
-    message: {
-      success: false,
-      message:
-        "Too many MFA attempts. Try again later.",
+    handler: (req, res) => {
+      res.status(429).json({
+        success: false,
+        message,
+      });
     },
-
-    standardHeaders: true,
-    legacyHeaders: false,
   });
 
-export const passwordResetRequestLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
+export const loginLimiter = createLimiter(
+  5,
+  "Too many login attempts. Try again later.",
+  true
+);
 
-    max: 3,
+export const mfaLimiter = createLimiter(
+  5,
+  "Too many MFA attempts. Try again later."
+);
 
-    message: {
-      success: false,
-      message:
-        "Too many password reset requests.",
-    },
+export const passwordResetRequestLimiter = createLimiter(
+  3,
+  "Too many password reset requests. Please try again later."
+);
 
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
+export const passwordResetLimiter = createLimiter(
+  5,
+  "Too many password reset attempts. Please try again later."
+);
 
-export const passwordResetLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
-
-    max: 5,
-
-    message: {
-      success: false,
-      message:
-        "Too many password reset attempts.",
-    },
-
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-export const refreshLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
-
-    max: 10,
-
-    message: {
-      success: false,
-      message:
-        "Too many token refresh requests.",
-    },
-
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
+export const refreshLimiter = createLimiter(
+  10,
+  "Too many refresh attempts. Please try again later."
+);

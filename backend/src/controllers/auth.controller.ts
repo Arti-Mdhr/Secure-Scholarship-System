@@ -7,6 +7,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 
+
 import User from "../models/User";
 import { registerSchema } from "../validators/auth.validator";
 import { loginSchema } from "../validators/auth.validator";
@@ -23,7 +24,10 @@ import {
 
 import { AuthRequest } from "../middleware/auth";
 import PasswordResetOTP from "../models/PasswordResetOTP";
-import { sendPasswordResetEmail } from "../utils/email";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../utils/email";
 
 export const login = async (
   req: Request,
@@ -48,6 +52,14 @@ export const login = async (
   res.status(403).json({
     success: false,
     message: "Account disabled",
+  });
+  return;
+}
+
+if (!user.emailVerified) {
+  res.status(403).json({
+    success: false,
+    message: "Please verify your email before logging in.",
   });
   return;
 }
@@ -190,14 +202,22 @@ export const register = async (
     }
 
     const passwordHash = await argon2.hash(
-      validatedData.password
-    );
+  validatedData.password
+);
 
-    const user = await User.create({
-      fullName: validatedData.fullName,
-      email: validatedData.email,
+const verificationToken =
+  crypto.randomBytes(32).toString("hex");
 
-      passwordHash,
+const user = await User.create({
+  fullName: validatedData.fullName,
+  email: validatedData.email,
+
+  emailVerified: false,
+
+  emailVerificationToken:
+    verificationToken,
+
+  passwordHash,
 
       passwordHistory: [passwordHash],
 
@@ -211,6 +231,17 @@ export const register = async (
       country: validatedData.country,
       address: validatedData.address,
     });
+
+    await sendVerificationEmail(
+  user.email,
+  verificationToken
+);
+await AuditLog.create({
+  userId: user._id,
+  action: "USER_REGISTERED",
+  ipAddress: req.ip,
+  userAgent: req.headers["user-agent"],
+});
 
     res.status(201).json({
       success: true,
@@ -373,9 +404,11 @@ export const loginWithMFA = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { userId, token } = req.body;
+    
 
-    const user = await User.findById(userId);
+    const { email, token } = req.body;
+
+const user = await User.findOne({ email });
 
     if (
       !user ||
@@ -838,6 +871,56 @@ export const resetPassword = async (
       success: false,
       message:
         "Password reset failed",
+    });
+  }
+};
+
+export const verifyEmail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const user =
+      await User.findOne({
+        emailVerificationToken:
+          req.params.token,
+      });
+
+    if (!user) {
+      res.status(400).json({
+        success: false,
+        message:
+          "Invalid verification token",
+      });
+      return;
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken =
+      undefined;
+
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "EMAIL_VERIFIED",
+      ipAddress: req.ip,
+      userAgent:
+        req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Email verified successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Email verification failed",
     });
   }
 };
