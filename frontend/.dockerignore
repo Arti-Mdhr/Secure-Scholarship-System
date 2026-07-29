@@ -4,7 +4,7 @@ node_modules
 .gitignore
 Dockerfile
 docker-compose.yml
-.env.local
+
 .env
 coverage
 npm-debug.log
