@@ -9,7 +9,12 @@ import {
   enableUser,
   getAdminStats,
   getSecurityEvents,
+  getAllApplications,
+  updateApplicationStatus,
+  getAuditLogs,
 } from "../controllers/admin.controller";
+
+import { getApplicationDocumentsAdmin } from "../controllers/document.controller";
 
 const router = Router();
 
@@ -47,4 +52,34 @@ router.get(
   adminOnly,
   getSecurityEvents
 );
+
+router.get(
+  "/applications",
+  protect,
+  adminOnly,
+  getAllApplications
+);
+
+router.patch(
+  "/applications/:id/status",
+  protect,
+  adminOnly,
+  updateApplicationStatus
+);
+
+router.get(
+  "/applications/:id/documents",
+  protect,
+  adminOnly,
+  getApplicationDocumentsAdmin
+);
+
+router.get(
+  "/audit-logs",
+  protect,
+  adminOnly,
+  getAuditLogs
+);
+
+
 export default router;

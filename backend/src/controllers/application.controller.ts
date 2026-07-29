@@ -68,6 +68,15 @@ export const createApplication = async (
           validatedData.extracurricularActivities,
       });
 
+    await AuditLog.create({
+      userId: req.user?.id,
+      action: "APPLICATION_CREATED",
+      targetType: "ScholarshipApplication",
+      targetId: application.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
     res.status(201).json({
       success: true,
       application,

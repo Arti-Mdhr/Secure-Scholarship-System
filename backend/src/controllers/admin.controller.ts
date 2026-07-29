@@ -55,12 +55,15 @@ export const disableUser = async (
 
     await user.save();
 
-    await AuditLog.create({
-      action: "USER_DISABLED",
-      targetType: "User",
-      targetId: user.id,
-    });
-
+   await AuditLog.create({
+    userId: req.user?.id,
+     action: "USER_DISABLED",
+    targetType: "User",
+    targetId: user.id,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+     });
+     
     res.status(200).json({
       success: true,
       message: "User disabled",
@@ -76,7 +79,7 @@ export const disableUser = async (
 };
 
 export const enableUser = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -97,9 +100,12 @@ export const enableUser = async (
     await user.save();
 
     await AuditLog.create({
+      userId: req.user?.id,
       action: "USER_ENABLED",
       targetType: "User",
       targetId: user.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
     });
 
     res.status(200).json({
@@ -197,6 +203,145 @@ export const getSecurityEvents = async (
       success: false,
       message:
         "Failed to retrieve security events",
+    });
+  }
+};
+
+export const getAllApplications = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const applications =
+      await ScholarshipApplication.find()
+        .populate("applicant", "fullName email studentId")
+        .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      applications,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve applications",
+    });
+  }
+};
+
+const reviewableStatuses = [
+  "under_review",
+  "approved",
+  "rejected",
+];
+
+export const updateApplicationStatus = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status, reviewerComments } = req.body;
+
+    if (!reviewableStatuses.includes(status)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "Status must be one of: under_review, approved, rejected",
+      });
+      return;
+    }
+
+    const application =
+      await ScholarshipApplication.findById(
+        req.params.id
+      );
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+      return;
+    }
+
+    if (application.status === "draft") {
+      res.status(400).json({
+        success: false,
+        message: "Cannot review an application that hasn't been submitted",
+      });
+      return;
+    }
+
+    application.status = status;
+
+    if (typeof reviewerComments === "string") {
+      application.reviewerComments = reviewerComments;
+    }
+
+    await application.save();
+
+    await AuditLog.create({
+      userId: req.user?.id,
+      action: "APPLICATION_STATUS_UPDATED",
+      targetType: "ScholarshipApplication",
+      targetId: application.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      application,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update application status",
+    });
+  }
+};
+export const getAuditLogs = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25));
+    const skip = (page - 1) * limit;
+
+    const filter: Record<string, unknown> = {};
+    if (req.query.action) filter.action = req.query.action;
+    if (req.query.userId) filter.userId = req.query.userId;
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter)
+        .populate("userId", "fullName email role")
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit),
+      AuditLog.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve audit logs",
     });
   }
 };

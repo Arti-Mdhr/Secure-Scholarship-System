@@ -17,14 +17,14 @@ const router = Router();
 router.post(
   "/register",
    loginLimiter,
-  // verifyRecaptcha,
+  verifyRecaptcha,
   register
 );
 
 router.post(
   "/login",
   loginLimiter,
-  //  verifyRecaptcha,
+   verifyRecaptcha,
   login
 );
 router.post(
