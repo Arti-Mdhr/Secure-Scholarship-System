@@ -7,17 +7,21 @@ export interface IUser extends Document {
   emailVerified: boolean;
   emailVerificationToken?: string;
 
-  passwordHash: string;
+  passwordHash?: string;
 
-  studentId: string;
-  university: string;
-  program: string;
-  academicLevel: string;
+  authProvider: "local" | "google";
+  googleId?: string;
+  profilePicture?: string;
 
-  phoneNumber: string;
-  dateOfBirth: Date;
-  country: string;
-  address: string;
+  studentId?: string;
+  university?: string;
+  program?: string;
+  academicLevel?: string;
+
+  phoneNumber?: string;
+  dateOfBirth?: Date;
+  country?: string;
+  address?: string;
 
   role: "student" | "admin";
 
@@ -62,48 +66,54 @@ const userSchema = new Schema<IUser>(
 
     passwordHash: {
       type: String,
-      required: true,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
+    googleId: {
+      type: String,
+    },
+
+    profilePicture: {
+      type: String,
     },
 
     studentId: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
     },
 
     university: {
       type: String,
-      required: true,
     },
 
     program: {
       type: String,
-      required: true,
     },
 
     academicLevel: {
       type: String,
-      required: true,
     },
 
     phoneNumber: {
       type: String,
-      required: true,
     },
 
     dateOfBirth: {
       type: Date,
-      required: true,
     },
 
     country: {
       type: String,
-      required: true,
     },
 
     address: {
       type: String,
-      required: true,
     },
 
     role: {
@@ -145,7 +155,4 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-export default mongoose.model<IUser>(
-  "User",
-  userSchema
-);
+export default mongoose.model<IUser>("User", userSchema);

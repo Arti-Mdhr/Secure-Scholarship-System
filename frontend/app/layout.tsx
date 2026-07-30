@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Inter, IBM_Plex_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -37,7 +38,10 @@ export default function RootLayout({
       className={`${manrope.variable} ${inter.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-surface text-ink">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
+
         <Toaster
           position="top-right"
           toastOptions={{
@@ -49,10 +53,16 @@ export default function RootLayout({
               padding: "10px 14px",
             },
             success: {
-              iconTheme: { primary: "#16a34a", secondary: "#fff" },
+              iconTheme: {
+                primary: "#16a34a",
+                secondary: "#fff",
+              },
             },
             error: {
-              iconTheme: { primary: "#dc2626", secondary: "#fff" },
+              iconTheme: {
+                primary: "#dc2626",
+                secondary: "#fff",
+              },
             },
           }}
         />

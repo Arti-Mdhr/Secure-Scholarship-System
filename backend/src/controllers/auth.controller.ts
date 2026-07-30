@@ -5,6 +5,7 @@ import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 
 
 
@@ -28,6 +29,8 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../utils/email";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const login = async (
   req: Request,
@@ -71,6 +74,14 @@ if (!user.emailVerified) {
       res.status(423).json({
         success: false,
         message: "Account temporarily locked",
+      });
+      return;
+    }
+
+    if (!user.passwordHash) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
       });
       return;
     }
@@ -127,6 +138,8 @@ if (!user.emailVerified) {
   });
   return;
 }
+
+
 
     const accessToken = generateAccessToken(
       user.id,
@@ -518,6 +531,14 @@ export const changePassword = async (
       res.status(404).json({
         success: false,
         message: "User not found",
+      });
+      return;
+    }
+
+    if (!user.passwordHash) {
+      res.status(400).json({
+        success: false,
+        message: "This account does not have a local password set",
       });
       return;
     }
@@ -1087,6 +1108,121 @@ export const refreshAccessToken = async (
       success: false,
       message:
         "Invalid refresh token",
+    });
+  }
+};
+export const googleLogin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      res.status(400).json({
+        success: false,
+        message: "Google credential is required",
+      });
+      return;
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid Google token",
+      });
+      return;
+    }
+
+    let user = await User.findOne({
+      email: payload.email.toLowerCase(),
+    });
+
+    if (!user) {
+      user = await User.create({
+        fullName: payload.name,
+        email: payload.email.toLowerCase(),
+
+        emailVerified: true,
+
+        authProvider: "google",
+
+        googleId: payload.sub,
+
+        profilePicture: payload.picture,
+
+        role: "student",
+
+        isActive: true,
+
+        passwordHistory: [],
+      });
+
+      await AuditLog.create({
+        userId: user._id,
+        action: "USER_REGISTERED_GOOGLE",
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"],
+      });
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({
+        success: false,
+        message: "Account disabled",
+      });
+      return;
+    }
+
+    const accessToken = generateAccessToken(
+      user.id,
+      user.role
+    );
+
+    const refreshToken = generateRefreshToken(
+      user.id
+    );
+
+    const refreshTokenHash =
+      await argon2.hash(refreshToken);
+
+    await RefreshToken.create({
+      userId: user._id,
+      tokenHash: refreshTokenHash,
+      expiresAt: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ),
+    });
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "LOGIN_SUCCESS_GOOGLE",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    res.status(200).json({
+      success: true,
+      accessToken,
+      refreshToken,
+      profileIncomplete:
+        !user.studentId ||
+        !user.university ||
+        !user.program,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(401).json({
+      success: false,
+      message: "Google authentication failed",
     });
   }
 };

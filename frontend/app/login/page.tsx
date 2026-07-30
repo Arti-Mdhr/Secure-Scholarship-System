@@ -8,13 +8,13 @@ import { ShieldCheck, KeyRound, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { isAxiosError } from "axios";
 import ReCAPTCHA from "react-google-recaptcha";
+import { GoogleLogin } from "@react-oauth/google";
 import api from "@/lib/axios";
-import { setTokens,decodeAccessToken } from "@/lib/auth";
+import { setTokens, decodeAccessToken } from "@/lib/auth";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
 import Recaptcha from "@/components/Recaptcha";
-
 
 type Step = "credentials" | "mfa";
 
@@ -39,9 +39,25 @@ export default function LoginPage() {
   function handleAuthSuccess(accessToken: string, refreshToken: string) {
     setTokens(accessToken, refreshToken);
     toast.success("Welcome back");
-    
-const payload = decodeAccessToken(accessToken);
+
+    const payload = decodeAccessToken(accessToken);
     router.push(payload?.role === "admin" ? "/admin/applications" : "/dashboard");
+  }
+
+  async function handleGoogleSuccess(credential: string) {
+    try {
+      const res = await api.post("/auth/google", {
+        credential,
+      });
+
+      handleAuthSuccess(res.data.accessToken, res.data.refreshToken);
+
+      if (res.data.profileIncomplete) {
+        toast("Please complete your profile before applying.");
+      }
+    } catch (error) {
+      toast.error("Google sign in failed.");
+    }
   }
 
   async function handleCredentialsSubmit(e: FormEvent) {
@@ -192,6 +208,33 @@ const payload = decodeAccessToken(accessToken);
                 <Button type="submit" className="w-full" isLoading={isSubmitting}>
                   Sign in
                 </Button>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="bg-white px-3 text-slate-500">OR</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={(credentialResponse) => {
+                      if (credentialResponse.credential) {
+                        handleGoogleSuccess(credentialResponse.credential);
+                      }
+                    }}
+                    onError={() => {
+                      toast.error("Google Sign-In failed.");
+                    }}
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    shape="rectangular"
+                    width="320"
+                  />
+                </div>
               </motion.form>
             ) : (
               <motion.form

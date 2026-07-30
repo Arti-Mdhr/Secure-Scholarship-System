@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev --experimental-https",
-  "build": "next build",
-  "start": "next start"
-},
+    "dev": "next dev --experimental-https",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
+    "@react-oauth/google": "^0.13.5",
     "axios": "^1.18.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.25.0",
