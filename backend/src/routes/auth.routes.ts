@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { register, login, setupMFA, verifyMFA, loginWithMFA, changePassword,requestPasswordReset, resetPassword , logout,refreshAccessToken, verifyEmail} from "../controllers/auth.controller";
+import { register, login, setupMFA, googleLogin,verifyMFA, loginWithMFA, changePassword,requestPasswordReset, resetPassword , logout,refreshAccessToken, verifyEmail} from "../controllers/auth.controller";
 import { protect } from "../middleware/auth";
 import {
   loginLimiter,
@@ -27,6 +27,9 @@ router.post(
    verifyRecaptcha,
   login
 );
+
+router.post("/google", googleLogin);
+
 router.post(
   "/request-password-reset",
   passwordResetRequestLimiter,
