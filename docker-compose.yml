@@ -21,6 +21,8 @@ services:
     depends_on:
       - mongodb
     restart: unless-stopped
+    volumes:
+    - ./certs:/certs:ro
 
   frontend:
     build:
