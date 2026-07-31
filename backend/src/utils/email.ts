@@ -28,6 +28,16 @@ function resolveAppBaseUrl(): string {
   return trimTrailingSlash(candidate);
 }
 
+function resolveFrontendUrl(
+  frontendUrl?: string | null
+): string {
+  if (frontendUrl && frontendUrl.trim()) {
+    return trimTrailingSlash(frontendUrl);
+  }
+
+  return resolveAppBaseUrl();
+}
+
 export const sendPasswordResetEmail = async (
   email: string,
   otp: string
@@ -55,11 +65,12 @@ export const sendPasswordResetEmail = async (
 
 export const sendVerificationEmail = async (
   email: string,
-  token: string
+  token: string,
+  frontendUrl?: string | null
 ): Promise<void> => {
   const verificationUrl = new URL(
-    `/api/auth/verify-email/${encodeURIComponent(token)}`,
-    resolveAppBaseUrl()
+    `/verify-email/${encodeURIComponent(token)}`,
+    resolveFrontendUrl(frontendUrl)
   ).toString();
 
   await transporter.sendMail({
