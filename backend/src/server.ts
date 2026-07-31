@@ -10,7 +10,6 @@ import app from "./app";
 import { connectDB } from "./config/database";
 
 const PORT = process.env.PORT || 5000;
-const useHttps = process.env.USE_HTTPS === "true";
 const certDir = process.env.CERT_DIR || "/certs";
 const keyPath =
   process.env.HTTPS_KEY_PATH ||
@@ -47,22 +46,15 @@ const ensureCertificates = () => {
 const startServer = async () => {
   await connectDB();
 
-  if (useHttps) {
-    ensureCertificates();
+  ensureCertificates();
 
-    const options = {
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath),
-    };
+  const options = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  };
 
-    https.createServer(options, app).listen(PORT, () => {
-      console.log(`HTTPS server running at https://localhost:${PORT}`);
-    });
-    return;
-  }
-
-  app.listen(PORT, () => {
-    console.log(`HTTP server running at http://localhost:${PORT}`);
+  https.createServer(options, app).listen(PORT, () => {
+    console.log(`HTTPS server running at https://localhost:${PORT}`);
   });
 };
 
