@@ -1,25 +1,30 @@
-version: "3.9"
-
 services:
   mongodb:
     image: mongo:8
-    container_name: scholarship-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    expose:
+      - "27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   backend:
     build:
       context: ./backend
-    container_name: scholarship-backend
     ports:
       - "5000:5000"
     env_file:
       - ./backend/.env
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/secure_scholarship_system
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
     volumes:
     - ./certs:/certs:ro
@@ -28,13 +33,12 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://backend:5000/api
+        NEXT_PUBLIC_API_URL: https://localhost:5000/api
         NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6Leuel4tAAAAALT1fi7dAMOu1anC78sMa1eOzbUl
-    container_name: scholarship-frontend
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:5000/api
+      NEXT_PUBLIC_API_URL: https://localhost:5000/api
       NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6Leuel4tAAAAALT1fi7dAMOu1anC78sMa1eOzbUl
     depends_on:
       - backend
