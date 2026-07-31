@@ -10,7 +10,9 @@ import app from "./app";
 import { connectDB } from "./config/database";
 
 const PORT = process.env.PORT || 5000;
-const certDir = process.env.CERT_DIR || "/certs";
+const certDir =
+  process.env.CERT_DIR ||
+  path.resolve(process.cwd(), "..", "certs");
 const keyPath =
   process.env.HTTPS_KEY_PATH ||
   path.join(certDir, "localhost-key.pem");
@@ -23,24 +25,30 @@ const ensureCertificates = () => {
     return;
   }
 
-  fs.mkdirSync(certDir, { recursive: true });
-  execFileSync("openssl", [
-    "req",
-    "-x509",
-    "-newkey",
-    "rsa:2048",
-    "-nodes",
-    "-keyout",
-    keyPath,
-    "-out",
-    certPath,
-    "-days",
-    "365",
-    "-subj",
-    "/CN=localhost",
-    "-addext",
-    "subjectAltName=DNS:localhost,IP:127.0.0.1",
-  ]);
+  try {
+    fs.mkdirSync(certDir, { recursive: true });
+    execFileSync("openssl", [
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-nodes",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
+      "-days",
+      "365",
+      "-subj",
+      "/CN=localhost",
+      "-addext",
+      "subjectAltName=DNS:localhost,IP:127.0.0.1",
+    ]);
+  } catch {
+    throw new Error(
+      `HTTPS certificates not found in ${certDir}. Place localhost-key.pem and localhost.pem there, or run inside Docker where openssl is available.`
+    );
+  }
 };
 
 const startServer = async () => {

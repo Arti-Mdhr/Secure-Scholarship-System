@@ -9,7 +9,8 @@ const hostname = "0.0.0.0";
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 
-const certDir = process.env.CERT_DIR || "/certs";
+const certDir =
+  process.env.CERT_DIR || path.resolve(__dirname, "..", "certs");
 const keyPath = process.env.HTTPS_KEY_PATH || path.join(certDir, "localhost-key.pem");
 const certPath = process.env.HTTPS_CERT_PATH || path.join(certDir, "localhost.pem");
 
@@ -18,24 +19,30 @@ const ensureCertificates = () => {
     return;
   }
 
-  fs.mkdirSync(certDir, { recursive: true });
-  execFileSync("openssl", [
-    "req",
-    "-x509",
-    "-newkey",
-    "rsa:2048",
-    "-nodes",
-    "-keyout",
-    keyPath,
-    "-out",
-    certPath,
-    "-days",
-    "365",
-    "-subj",
-    "/CN=localhost",
-    "-addext",
-    "subjectAltName=DNS:localhost,IP:127.0.0.1",
-  ]);
+  try {
+    fs.mkdirSync(certDir, { recursive: true });
+    execFileSync("openssl", [
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-nodes",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
+      "-days",
+      "365",
+      "-subj",
+      "/CN=localhost",
+      "-addext",
+      "subjectAltName=DNS:localhost,IP:127.0.0.1",
+    ]);
+  } catch {
+    throw new Error(
+      `HTTPS certificates not found in ${certDir}. Place localhost-key.pem and localhost.pem there, or run inside Docker where openssl is available.`
+    );
+  }
 };
 
 app.prepare().then(() => {

@@ -249,7 +249,9 @@ const user = await User.create({
       await sendVerificationEmail(
         user.email,
         verificationToken,
-        req.get("origin") || process.env.FRONTEND_URL || process.env.CLIENT_URL
+        process.env.PUBLIC_FRONTEND_URL ||
+          process.env.FRONTEND_URL ||
+          process.env.CLIENT_URL
       );
     } catch (emailError) {
       await User.deleteOne({
