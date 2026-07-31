@@ -28,16 +28,6 @@ function resolveAppBaseUrl(): string {
   return trimTrailingSlash(candidate);
 }
 
-function resolveFrontendUrl(
-  frontendUrl?: string | null
-): string {
-  if (frontendUrl && frontendUrl.trim()) {
-    return trimTrailingSlash(frontendUrl);
-  }
-
-  return resolveAppBaseUrl();
-}
-
 export const sendPasswordResetEmail = async (
   email: string,
   otp: string
@@ -59,37 +49,6 @@ export const sendPasswordResetEmail = async (
       <p>This OTP expires in 10 minutes.</p>
 
       <p>If you did not request a password reset, ignore this email.</p>
-    `,
-  });
-};
-
-export const sendVerificationEmail = async (
-  email: string,
-  token: string,
-  frontendUrl?: string | null
-): Promise<void> => {
-  const verificationUrl = new URL(
-    `/verify-email/${encodeURIComponent(token)}`,
-    resolveFrontendUrl(frontendUrl)
-  ).toString();
-
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-
-    to: email,
-
-    subject: "Verify Your Scholarship Account",
-
-    html: `
-      <h2>Verify Your Email</h2>
-
-      <p>Click the button below to verify your account:</p>
-
-      <a href="${verificationUrl}">
-        Verify Email
-      </a>
-
-      <p>If you did not create this account, ignore this email.</p>
     `,
   });
 };

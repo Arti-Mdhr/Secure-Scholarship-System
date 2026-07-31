@@ -10,7 +10,7 @@ router.get(
   async (req: AuthRequest, res) => {
     try {
       const user = await User.findById(req.user?.id).select(
-        "-passwordHash -passwordHistory -mfaSecret -emailVerificationToken"
+        "-passwordHash -passwordHistory -mfaSecret"
       );
 
       if (!user) {

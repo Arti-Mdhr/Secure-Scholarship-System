@@ -161,14 +161,14 @@ export default function RegisterPage() {
               <MailCheck className="h-7 w-7 text-signal" />
             </div>
             <h1 className="font-display text-xl font-semibold text-ink">
-              Check your inbox
+              Account created
             </h1>
             <p className="mt-2 text-sm text-slate">
-              We sent a verification link to
+              Your account is ready to use.
             </p>
             <p className="mt-1 font-mono text-sm text-ink">{registeredEmail}</p>
             <p className="mt-4 text-sm text-slate">
-              Verify your email to activate your account, then sign in.
+              You can sign in now.
             </p>
             <Link href="/login" className="mt-6 block">
               <Button className="w-full">Go to login</Button>

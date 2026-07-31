@@ -27,7 +27,6 @@ import { AuthRequest } from "../middleware/auth";
 import PasswordResetOTP from "../models/PasswordResetOTP";
 import {
   sendPasswordResetEmail,
-  sendVerificationEmail,
 } from "../utils/email";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -55,14 +54,6 @@ export const login = async (
   res.status(403).json({
     success: false,
     message: "Account disabled",
-  });
-  return;
-}
-
-if (!user.emailVerified) {
-  res.status(403).json({
-    success: false,
-    message: "Please verify your email before logging in.",
   });
   return;
 }
@@ -218,17 +209,11 @@ export const register = async (
   validatedData.password
 );
 
-const verificationToken =
-  crypto.randomBytes(32).toString("hex");
-
 const user = await User.create({
   fullName: validatedData.fullName,
   email: validatedData.email,
 
-  emailVerified: false,
-
-  emailVerificationToken:
-    verificationToken,
+  emailVerified: true,
 
   passwordHash,
 
@@ -244,32 +229,6 @@ const user = await User.create({
       country: validatedData.country,
       address: validatedData.address,
     });
-
-    try {
-      await sendVerificationEmail(
-        user.email,
-        verificationToken,
-        process.env.PUBLIC_FRONTEND_URL ||
-          process.env.FRONTEND_URL ||
-          process.env.CLIENT_URL
-      );
-    } catch (emailError) {
-      await User.deleteOne({
-        _id: user._id,
-      });
-
-      console.error(
-        "Failed to send verification email",
-        emailError
-      );
-
-      res.status(500).json({
-        success: false,
-        message:
-          "Registration failed: verification email could not be sent",
-      });
-      return;
-    }
 
 await AuditLog.create({
   userId: user._id,
@@ -302,7 +261,7 @@ await AuditLog.create({
     success: false,
     message: "Registration failed",
   });
-}
+  }
 };
 
 
@@ -918,91 +877,6 @@ export const resetPassword = async (
   }
 };
 
-export const verifyEmail = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const frontendUrl =
-    process.env.FRONTEND_URL ||
-    process.env.CLIENT_URL ||
-    "https://localhost:3000";
-
-  try {
-    const verificationToken = decodeURIComponent(
-      Array.isArray(req.params.token)
-        ? req.params.token[0]
-        : req.params.token
-    ).trim();
-
-    const user =
-      await User.findOne({
-        emailVerificationToken:
-          verificationToken,
-      });
-
-    if (!user) {
-      res.status(400).send(`
-        <html>
-          <body style="font-family: Arial, sans-serif; padding: 32px;">
-            <h2>Email verification failed</h2>
-            <p>Invalid verification token.</p>
-            <p><a href="${new URL("/login", frontendUrl).toString()}">Continue to login</a></p>
-          </body>
-        </html>
-      `);
-      return;
-    }
-
-    if (user.emailVerified) {
-      res.status(200).send(`
-        <html>
-          <body style="font-family: Arial, sans-serif; padding: 32px;">
-            <h2>Email already verified</h2>
-            <p>Your account is already active.</p>
-            <p><a href="${new URL("/login", frontendUrl).toString()}">Go to login</a></p>
-          </body>
-        </html>
-      `);
-      return;
-    }
-
-    user.emailVerified = true;
-    user.emailVerificationToken =
-      undefined;
-
-    await user.save();
-
-    await AuditLog.create({
-      userId: user._id,
-      action: "EMAIL_VERIFIED",
-      ipAddress: req.ip,
-      userAgent:
-        req.headers["user-agent"],
-    });
-
-    res.status(200).send(`
-      <html>
-        <body style="font-family: Arial, sans-serif; padding: 32px;">
-          <h2>Email verified successfully</h2>
-          <p>You can now sign in to your account.</p>
-          <p><a href="${new URL("/login", frontendUrl).toString()}">Go to login</a></p>
-        </body>
-      </html>
-    `);
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).send(`
-      <html>
-        <body style="font-family: Arial, sans-serif; padding: 32px;">
-          <h2>Email verification failed</h2>
-          <p>Something went wrong while verifying your email.</p>
-          <p><a href="${new URL("/login", frontendUrl).toString()}">Continue to login</a></p>
-        </body>
-      </html>
-    `);
-  }
-};
 
 export const logout = async (
   req: AuthRequest,
