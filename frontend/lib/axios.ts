@@ -6,8 +6,23 @@ import {
   setTokens,
 } from "./auth";
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function resolveApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl) return trimTrailingSlash(envUrl);
+
+  if (typeof window !== "undefined") {
+    return `${window.location.origin.replace(/\/+$/, "")}/api`;
+  }
+
+  return "https://localhost:5000/api";
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://localhost:5000/api",
+  baseURL: resolveApiBaseUrl(),
 });
 
 // Attach the access token to every outgoing request.
@@ -73,7 +88,7 @@ api.interceptors.response.use(
 
     try {
       const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://localhost:5000/api"}/auth/refresh`,
+        `${resolveApiBaseUrl()}/auth/refresh`,
         { refreshToken }
       );
 

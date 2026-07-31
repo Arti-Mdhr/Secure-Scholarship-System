@@ -13,6 +13,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function resolveAppBaseUrl(): string {
+  const fallback = "https://localhost:3000";
+  const candidate =
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    process.env.PUBLIC_FRONTEND_URL ||
+    fallback;
+
+  return trimTrailingSlash(candidate);
+}
+
 export const sendPasswordResetEmail = async (
   email: string,
   otp: string
@@ -42,14 +57,9 @@ export const sendVerificationEmail = async (
   email: string,
   token: string
 ): Promise<void> => {
-  const clientUrl =
-    process.env.FRONTEND_URL ||
-    process.env.CLIENT_URL ||
-    "https://localhost:3000";
-
   const verificationUrl = new URL(
-    `/verify-email/${token}`,
-    clientUrl
+    `/api/auth/verify-email/${encodeURIComponent(token)}`,
+    resolveAppBaseUrl()
   ).toString();
 
   await transporter.sendMail({

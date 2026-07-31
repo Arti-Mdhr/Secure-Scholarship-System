@@ -12,6 +12,25 @@ import documentRoutes from "./routes/document.routes";
 
 const app = express();
 
+function resolveOrigins(): string[] {
+  const configured = [
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    process.env.PUBLIC_FRONTEND_URL,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.replace(/\/+$/, ""));
+
+  const defaults = [
+    "https://localhost:3000",
+    "http://localhost:3000",
+    "https://127.0.0.1:3000",
+    "http://127.0.0.1:3000",
+  ];
+
+  return Array.from(new Set([...configured, ...defaults]));
+}
+
 /**
  * Hide Express technology header
  */
@@ -45,7 +64,7 @@ app.use(
  */
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: resolveOrigins(),
     credentials: true,
   })
 );
