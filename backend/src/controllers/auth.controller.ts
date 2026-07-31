@@ -901,10 +901,16 @@ export const verifyEmail = async (
   res: Response
 ): Promise<void> => {
   try {
+    const verificationToken = decodeURIComponent(
+      Array.isArray(req.params.token)
+        ? req.params.token[0]
+        : req.params.token
+    ).trim();
+
     const user =
       await User.findOne({
         emailVerificationToken:
-          req.params.token,
+          verificationToken,
       });
 
     if (!user) {

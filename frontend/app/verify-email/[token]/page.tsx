@@ -18,10 +18,18 @@ export default function VerifyEmailPage() {
   const [message, setMessage] = useState("Verifying your email...");
 
   useEffect(() => {
+    const token = Array.isArray(params.token)
+      ? params.token[0]
+      : params.token;
+
+    if (!token) {
+      return;
+    }
+
     let isMounted = true;
 
     api
-      .get(`/auth/verify-email/${params.token}`)
+      .get(`/auth/verify-email/${encodeURIComponent(token)}`)
       .then((res) => {
         if (!isMounted) return;
         setStatus("success");
