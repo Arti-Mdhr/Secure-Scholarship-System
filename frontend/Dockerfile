@@ -2,6 +2,15 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache openssl \
+  && mkdir -p /certs \
+  && openssl req -x509 -newkey rsa:2048 -nodes \
+    -keyout /certs/localhost-key.pem \
+    -out /certs/localhost.pem \
+    -days 365 \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
 COPY package*.json ./
 RUN npm ci
 
