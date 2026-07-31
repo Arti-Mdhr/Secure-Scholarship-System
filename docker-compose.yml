@@ -31,12 +31,12 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:5000/api
+        NEXT_PUBLIC_API_URL: https://localhost:5000/api
         NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6Leuel4tAAAAALT1fi7dAMOu1anC78sMa1eOzbUl
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      NEXT_PUBLIC_API_URL: https://localhost:5000/api
       NEXT_PUBLIC_RECAPTCHA_SITE_KEY: 6Leuel4tAAAAALT1fi7dAMOu1anC78sMa1eOzbUl
     depends_on:
       - backend

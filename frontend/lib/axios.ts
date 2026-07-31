@@ -7,7 +7,7 @@ import {
 } from "./auth";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://localhost:5000/api",
 });
 
 // Attach the access token to every outgoing request.
@@ -73,7 +73,7 @@ api.interceptors.response.use(
 
     try {
       const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/refresh`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://localhost:5000/api"}/auth/refresh`,
         { refreshToken }
       );
 
