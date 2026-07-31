@@ -26,8 +26,6 @@ services:
       mongodb:
         condition: service_healthy
     restart: unless-stopped
-    volumes:
-    - ./certs:/certs:ro
 
   frontend:
     build:
